@@ -16,3 +16,14 @@ wheels/
 # Source PDFs and the generated vector database
 data/pdf/
 data/vectorstore/
+
+
+#test txt files
+data/text_files/
+
+
+# Evaluation (kept locally)
+eval.py
+score.py
+data/eval/
+results/

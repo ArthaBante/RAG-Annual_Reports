@@ -1,14 +1,17 @@
 from typing import List, Dict, Any
 
+from sentence_transformers import CrossEncoder
+
 from src.embeddings import EmbeddingManager
 from src.vector_store import VectorStore
+from src.config import RERANK_MODEL
 
 
 class RAGRetriever:
 
     """Handles query based retrieval from the vector store"""
 
-    def __init__(self, vector_store: VectorStore, embedding_manager: EmbeddingManager):
+    def __init__(self, vector_store: VectorStore, embedding_manager: EmbeddingManager, rerank_model: str = RERANK_MODEL):
         """
         Initialise the retriever
 
@@ -20,9 +23,11 @@ class RAGRetriever:
 
         self.vector_store = vector_store
         self.embedding_manager = embedding_manager
+        self.rerank_model_name = rerank_model
+        self.reranker = CrossEncoder(self.rerank_model_name)
 
 
-    def retrieve(self, query: str, top_k: int = 5, score_threshold: float = 0.0) -> List[Dict[str, Any]]:
+    def retrieve(self, query: str, top_k: int = 5, score_threshold: float = 0.0, source_file: str=None) -> List[Dict[str, Any]]:
         """
         Retrieve relevant document for a query
 
@@ -45,13 +50,25 @@ class RAGRetriever:
         #search in vector store
 
         try:
+            
+            query_args = {
+                "query_embeddings": [query_embedding.tolist()],
+                "n_results": top_k,
+            }
+            if source_file:
+                query_args["where"] = {"source_file": source_file}
 
-            results = self.vector_store.collection.query(
-                query_embeddings = [query_embedding.tolist()],
-                n_results=top_k
-            )
+            results = self.vector_store.collection.query(**query_args)
 
-            #process results
+
+            # results = self.vector_store.collection.query(
+                
+            #     query_embeddings = [query_embedding.tolist()],
+            #     n_results=top_k
+            # )
+
+            
+            ####process results
 
             retrieved_docs = []
 
@@ -86,3 +103,22 @@ class RAGRetriever:
         except Exception as e:
             print(f"Error during retrieval: {e}")
             raise []
+
+
+    def rerank_model(self, query: str, documents: List[Dict[str, Any]], keep: int = 5) ->List[Dict[str, Any]]:
+        if not documents:
+            return []
+
+        pairs = [(query, document['content']) for document in documents]
+
+        scores = self.reranker.predict(pairs)
+
+        for document, score in zip(documents, scores):
+            document['rerank_score'] = float(score)
+
+        reranked = sorted(documents, key=lambda x:x['rerank_score'], reverse=True)
+
+        return reranked[:keep]
+
+
+

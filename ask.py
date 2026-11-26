@@ -20,13 +20,15 @@ def main():
     vectorstore = VectorStore()
     rag_retriever = RAGRetriever(vectorstore, embedding_manager)
 
-    result = rag_advanced(question, rag_retriever, llm, top_k=3, return_context=True)
+    result = rag_advanced(question, rag_retriever, llm, top_k=10, return_context=True)
 
     print("\nAnswer:", result['answer'])
     print("Confidence:", result['confidence'])
     print("Sources:")
     for source in result['sources']:
-        print(f"  - {source['source']}, page {source['page']} (score {source['score']:.2f})")
+        # print(f"  - {source['source']}, page {source['page']} (score {source['score']:.2f})")
+        
+        print(f"  - {source['source']}, page {source['page']} (score {source['score']:.2f}, rerank {source['rerank_score']:.2f})")
 
 
 if __name__ == "__main__":
